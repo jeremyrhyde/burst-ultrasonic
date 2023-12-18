@@ -1,5 +1,5 @@
 
-mergedcamera: *.go 
+build: *.go 
 	go build -o mergedcamera *.go
 
 test:
