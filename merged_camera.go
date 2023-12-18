@@ -39,10 +39,10 @@ func init() {
 
 // Validate checks that the config attributes are valid for a replay camera.
 func (cfg *Config) Validate(path string) ([]string, error) {
-	if cfg.cameras == nil {
+	if cfg.Cameras == nil {
 		return nil, resource.NewConfigValidationFieldRequiredError(path, "camera")
 	}
-	deps := cfg.cameras
+	deps := cfg.Cameras
 
 	deps = append(deps, framesystem.InternalServiceName.String())
 
@@ -51,7 +51,7 @@ func (cfg *Config) Validate(path string) ([]string, error) {
 
 // Config describes how to configure the merged camera component.
 type Config struct {
-	cameras []string `json:"cameras,omitempty"`
+	Cameras []string `json:"cameras,omitempty"`
 }
 
 type mergedPCDCamera struct {
@@ -101,7 +101,7 @@ func (merged *mergedPCDCamera) Reconfigure(ctx context.Context, deps resource.De
 	}
 
 	var cameras []camera.Camera
-	for _, cameraName := range mergedPCDCameraConfig.cameras {
+	for _, cameraName := range mergedPCDCameraConfig.Cameras {
 
 		cam, err := camera.FromDependencies(deps, cameraName)
 		if err != nil {
