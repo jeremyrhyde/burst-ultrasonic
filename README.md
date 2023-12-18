@@ -1,1 +1,1 @@
-# viam-merged-camera
+# Merged Camera

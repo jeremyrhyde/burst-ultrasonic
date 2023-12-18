@@ -1,0 +1,13 @@
+{
+  "module_id": "jeremyrhyde:merged_camera",
+  "visibility": "public",
+  "url": "https://github.com/jeremyrhyde/viam-merged-camera/",
+  "description": "A compoennt for merging camera pointcloud data",
+  "models": [
+    {
+      "api": "rdk:component:camera",
+      "model": "viam:camera:merged-camera"
+    }
+  ],
+  "entrypoint": "mergedcamera"
+}
