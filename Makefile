@@ -8,5 +8,5 @@ test:
 lint:
 	gofmt -w -s .
 
-module.tgz: mergedcamera 
+module.tgz: build 
 	tar czf module.tgz mergedcamera

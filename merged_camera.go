@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -28,12 +29,12 @@ const (
 
 var (
 	// model is the model of a replay camera.
-	model = resource.DefaultModelFamily.WithModel("merged_pcd")
+	model = resource.DefaultModelFamily.WithModel("merged_camera")
 )
 
 func init() {
 	resource.RegisterComponent(camera.API, model, resource.Registration[camera.Camera, *Config]{
-		Constructor: newMergedPCDCamera,
+		Constructor: newMergedCamera,
 	})
 }
 
@@ -54,7 +55,7 @@ type Config struct {
 	Cameras []string `json:"cameras,omitempty"`
 }
 
-type mergedPCDCamera struct {
+type mergedCamera struct {
 	resource.Named
 	logger logging.Logger
 
@@ -66,11 +67,11 @@ type mergedPCDCamera struct {
 	closed bool
 }
 
-// newPCDCamera creates a new replay camera based on the inputted config and dependencies.
-func newMergedPCDCamera(
+// newCamera creates a new replay camera based on the inputted config and dependencies.
+func newMergedCamera(
 	ctx context.Context, deps resource.Dependencies, conf resource.Config, logger logging.Logger,
 ) (camera.Camera, error) {
-	cam := &mergedPCDCamera{
+	cam := &mergedCamera{
 		Named:  conf.ResourceName().AsNamed(),
 		logger: logger,
 	}
@@ -83,7 +84,7 @@ func newMergedPCDCamera(
 }
 
 // Close stops replay camera, closes the channels and its connections to the cloud.
-func (merged *mergedPCDCamera) Close(ctx context.Context) error {
+func (merged *mergedCamera) Close(ctx context.Context) error {
 	merged.mu.Lock()
 	defer merged.mu.Unlock()
 
@@ -93,15 +94,15 @@ func (merged *mergedPCDCamera) Close(ctx context.Context) error {
 
 // Reconfigure finishes the bring up of the replay camera by evaluating given arguments and setting up the required cloud
 // connection.
-func (merged *mergedPCDCamera) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
+func (merged *mergedCamera) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
 
-	mergedPCDCameraConfig, err := resource.NativeConfig[*Config](conf)
+	mergedCameraConfig, err := resource.NativeConfig[*Config](conf)
 	if err != nil {
 		return err
 	}
 
 	var cameras []camera.Camera
-	for _, cameraName := range mergedPCDCameraConfig.Cameras {
+	for _, cameraName := range mergedCameraConfig.Cameras {
 
 		cam, err := camera.FromDependencies(deps, cameraName)
 		if err != nil {
@@ -137,7 +138,7 @@ func (merged *mergedPCDCamera) Reconfigure(ctx context.Context, deps resource.De
 }
 
 // NextPointCloud returns the next point cloud retrieved from cloud storage based on the applied filter.
-func (merged *mergedPCDCamera) NextPointCloud(ctx context.Context) (pointcloud.PointCloud, error) {
+func (merged *mergedCamera) NextPointCloud(ctx context.Context) (pointcloud.PointCloud, error) {
 	merged.mu.Lock()
 	defer merged.mu.Unlock()
 	if merged.closed {
@@ -146,14 +147,19 @@ func (merged *mergedPCDCamera) NextPointCloud(ctx context.Context) (pointcloud.P
 
 	var cloudAndOffsetFuncs []pointcloud.CloudAndOffsetFunc
 	for _, cam := range merged.cameras {
+		camCopy := cam
+		fmt.Printf("%v Camera \n", cam)
+
 		cloudAndOffsetFunc := func(ctx context.Context) (pointcloud.PointCloud, spatialmath.Pose, error) {
-			pc, err := cam.NextPointCloud(ctx)
+			pc, err := camCopy.NextPointCloud(ctx)
+			fmt.Printf("%v NextPointCloud PC: %v \n", camCopy.Name().ShortName(), pc)
+			fmt.Printf("%v NextPointCloud err: %v \n\n", camCopy.Name().ShortName(), err)
 
 			// determine transform from each camera to first camera
 			origin := referenceframe.NewPoseInFrame(merged.cameras[0].Name().ShortName(), spatialmath.NewZeroPose())
-			transformedPose, err := merged.fsService.TransformPose(ctx, origin, cam.Name().ShortName(), nil)
+			transformedPose, err := merged.fsService.TransformPose(ctx, origin, camCopy.Name().ShortName(), nil)
 			if err != nil {
-				return nil, nil, errors.Errorf("issue getting tranform from camera %v to first camera %v", merged.cameras[0].Name().ShortName(), cam.Name().ShortName())
+				return nil, nil, errors.Errorf("issue getting tranform from camera %v to first camera %v", merged.cameras[0].Name().ShortName(), camCopy.Name().ShortName())
 			}
 
 			return pc, transformedPose.Pose(), err
@@ -162,22 +168,25 @@ func (merged *mergedPCDCamera) NextPointCloud(ctx context.Context) (pointcloud.P
 		cloudAndOffsetFuncs = append(cloudAndOffsetFuncs, cloudAndOffsetFunc)
 	}
 
+	fmt.Println("hIIII")
 	mergedPC, err := pointcloud.MergePointClouds(ctx, cloudAndOffsetFuncs, merged.logger)
 	if err != nil {
 		return nil, errors.Wrapf(err, "issue merging pointclouds")
 	}
+	fmt.Println("merged PC: ", mergedPC)
+	fmt.Println("error PC: ", err)
 
 	return mergedPC, err
 
 }
 
 // Images is a part of the camera interface but is not implemented for replay.
-func (merged *mergedPCDCamera) Images(ctx context.Context) ([]camera.NamedImage, resource.ResponseMetadata, error) {
+func (merged *mergedCamera) Images(ctx context.Context) ([]camera.NamedImage, resource.ResponseMetadata, error) {
 	return nil, resource.ResponseMetadata{}, errors.New("Images is unimplemented")
 }
 
 // Properties is a part of the camera interface and returns the camera.Properties struct with SupportsPCD set to true.
-func (merged *mergedPCDCamera) Properties(ctx context.Context) (camera.Properties, error) {
+func (merged *mergedCamera) Properties(ctx context.Context) (camera.Properties, error) {
 	props := camera.Properties{
 		SupportsPCD: true,
 	}
@@ -185,13 +194,13 @@ func (merged *mergedPCDCamera) Properties(ctx context.Context) (camera.Propertie
 }
 
 // Projector is a part of the camera interface but is not implemented for replay.
-func (merged *mergedPCDCamera) Projector(ctx context.Context) (transform.Projector, error) {
+func (merged *mergedCamera) Projector(ctx context.Context) (transform.Projector, error) {
 	var proj transform.Projector
 	return proj, errors.New("Projector is unimplemented")
 }
 
 // Stream is a part of the camera interface but is not implemented for replay.
-func (merged *mergedPCDCamera) Stream(ctx context.Context, errHandlers ...gostream.ErrorHandler) (gostream.VideoStream, error) {
+func (merged *mergedCamera) Stream(ctx context.Context, errHandlers ...gostream.ErrorHandler) (gostream.VideoStream, error) {
 	var stream gostream.VideoStream
 	return stream, errors.New("Stream is unimplemented")
 }
