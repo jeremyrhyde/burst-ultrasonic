@@ -10,19 +10,19 @@ import (
 )
 
 func main() {
-	utils.ContextualMain(mainWithArgs, module.NewLoggerFromArgs("merged_camera"))
+	utils.ContextualMain(mainWithArgs, module.NewLoggerFromArgs("burst_ultrasonic"))
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger logging.Logger) error {
-	mergedCameraModule, err := module.NewModuleFromArgs(ctx, logger)
+	burstUltrasonicModule, err := module.NewModuleFromArgs(ctx, logger)
 	if err != nil {
 		return err
 	}
 
-	mergedCameraModule.AddModelFromRegistry(ctx, camera.API, model)
+	burstUltrasonicModule.AddModelFromRegistry(ctx, camera.API, model)
 
-	err = mergedCameraModule.Start(ctx)
-	defer mergedCameraModule.Close(ctx)
+	err = burstUltrasonicModule.Start(ctx)
+	defer burstUltrasonicModule.Close(ctx)
 	if err != nil {
 		return err
 	}

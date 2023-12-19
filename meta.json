@@ -1,13 +1,13 @@
 {
-  "module_id": "jeremyrhyde:merged_camera",
+  "module_id": "jeremyrhyde:burst-ultrasonic",
   "visibility": "public",
-  "url": "https://github.com/jeremyrhyde/viam-merged-camera/",
-  "description": "A compoennt for merging camera pointcloud data",
+  "url": "https://github.com/jeremyrhyde/burst-ultrasonic/",
+  "description": "An ultrasonic camera component that creates a burst of points" ,
   "models": [
     {
       "api": "rdk:component:camera",
-      "model": "viam:camera:merged-camera"
+      "model": "viam:camera:burst-ultrasonic"
     }
   ],
-  "entrypoint": "mergedcamera"
+  "entrypoint": "burstultrasonic"
 }
